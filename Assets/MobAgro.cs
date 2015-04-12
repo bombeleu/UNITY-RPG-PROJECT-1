@@ -2,47 +2,41 @@
 using System.Collections;
 
 public class MobAgro : MonoBehaviour {
-	public float ratation_speed = 5;
-	public float min_distance = 1;
-	public float max_distance = 3;
 	public float agro_range = 7;
 	public float un_agro_range = 10;
-	public float run_speed = 4;
-	public AnimationClip run_animation;
 
 	private ObjectController obj_controller;
-	private CharacterController controller;
-	private Vector3 last_position;
 	private Vector3 start_position;
-	private bool target = false;
+	private Vector3 last_target_location;
 	private bool agro = false;
-	private bool move = false;
+	private bool returning = true;
 	
 	void Start () {
 		obj_controller = GetComponent<ObjectController> ();
-		controller = GetComponent<CharacterController> ();
 		start_position = transform.position;
 	}
 	void Update () {
-		target = inRange ();
-		if (target) {
-			rotateToPosition (obj_controller.GetTargetPosition ());
-			var distance = Vector3.Distance (transform.position, obj_controller.GetTargetPosition ());
-			if (distance > min_distance) {
-				controller.SimpleMove (transform.forward * run_speed);
-				if (move && (distance < max_distance || transform.position == last_position)) {
-					move = false;
-					obj_controller.ResetAnimation (true);
-				} else if (!move && distance > max_distance && transform.position != last_position) {
-					move = true;
-					obj_controller.SetAnimation (run_animation, true);
-				}
-			}
-		} else if (agro) {
-			obj_controller.ResetAnimation (true);
+		var target = inRange ();
+		if (!agro && target) {
+			Debug.Log("Mob: atack Player!");
+			returning = false;
+			agro = true;
+			obj_controller.SetDestination(obj_controller.GetTargetPosition());
+		} else if (agro && !target && Vector3.Distance (transform.position, obj_controller.GetTargetPosition()) > un_agro_range) {
+			Debug.Log("Mob: leave Player!");
 			agro = false;
+			obj_controller.SetDestination(start_position);
 		}
-		last_position = transform.position;
+		if (!agro && !target && !returning) {
+			Debug.Log("Mob: come Back!");
+			returning = true;
+			obj_controller.SetDestination(start_position);
+		} else if (agro && Vector3.Distance(obj_controller.GetTargetPosition(), last_target_location) > 1) {
+			obj_controller.SetDestination(obj_controller.GetTargetPosition());
+		}
+		if (agro) {
+			last_target_location = transform.position;	
+		} 
 	}
 
 	public bool Agro() {
@@ -50,21 +44,10 @@ public class MobAgro : MonoBehaviour {
 	}
 
 	private bool inRange() {
-		if (Vector3.Distance (transform.position, obj_controller.GetTargetPosition()) > un_agro_range) {
-			if (target) Debug.Log("Mob: leave Player!");
-			move = false;
-			return false;
-		} else {
-			if (!target) Debug.Log("Mob: atack Player!");
-			agro = true;
+		if (Vector3.Distance (transform.position, obj_controller.GetTargetPosition()) < agro_range) {
 			return true;
+		} else {
+			return false;
 		}
-	}
-		
-	private void rotateToPosition(Vector3 val) {
-		var rotation = Quaternion.LookRotation (val - transform.position);
-		rotation.x = 0f;
-		rotation.z = 0f;
-		transform.rotation = Quaternion.Slerp(transform.rotation, rotation, Time.deltaTime * ratation_speed);
 	}
 }
